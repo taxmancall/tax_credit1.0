@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>연금세액공제 시뮬레이터</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "맑은 고딕", "Malgun Gothic", sans-serif;
+    background: #F7F6F2;
+    color: #1A1A1A;
+    line-height: 1.6;
+    padding: 24px 16px;
+    min-height: 100vh;
+  }
+  .container { max-width: 760px; margin: 0 auto; }
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 0.5px solid rgba(0,0,0,0.12);
+  }
+  header h1 { font-size: 22px; font-weight: 500; margin-bottom: 6px; }
+  header p { font-size: 13px; color: #6B6B6B; }
+
+  /* Index Navigation */
+  .index-nav {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    background: #FFFFFF;
+    border: 0.5px solid rgba(0,0,0,0.12);
+    border-radius: 12px;
+    padding: 6px;
+    margin-bottom: 20px;
+    position: sticky;
+    top: 12px;
+    z-index: 10;
+    backdrop-filter: blur(8px);
+  }
+  .index-nav button {
+    padding: 10px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    border: none;
+    background: transparent;
+    color: #6B6B6B;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1.3;
+    transition: all 0.15s;
+  }
+  .index-nav button.active {
+    background: #185FA5;
+    color: #FFFFFF;
+  }
+  .index-nav button:not(.active):hover {
+    background: #F1EFE8;
+    color: #1A1A1A;
+  }
+  .index-nav button .icon-num {
+    display: block;
+    font-size: 10px;
+    opacity: 0.7;
+    margin-bottom: 2px;
+  }
+
+  section {
+    background: #FFFFFF;
+    border: 0.5px solid rgba(0,0,0,0.12);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin-bottom: 20px;
+    display: none;
+  }
+  section.active { display: block; }
+  section h2 {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .badge-info {
+    background: #E6F1FB;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .badge-info .title {
+    font-size: 13px;
+    font-weight: 500;
+    color: #0C447C;
+    margin-bottom: 8px;
+  }
+  .badge-info table { width: 100%; font-size: 13px; color: #0C447C; }
+  .badge-info td { padding: 4px 0; }
+  .badge-info td:first-child { width: 80px; }
+
+  .rate-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .rate-tabs.three { grid-template-columns: 1fr 1fr 1fr; }
+  .rate-tabs button {
+    padding: 12px;
+    font-size: 13px;
+    border: 0.5px solid rgba(0,0,0,0.18);
+    background: transparent;
+    color: #6B6B6B;
+    border-radius: 8px;
+    cursor: pointer;
+    line-height: 1.4;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .rate-tabs button.active {
+    background: #E6F1FB;
+    color: #0C447C;
+    border-color: rgba(0,0,0,0.3);
+  }
+  .rate-tabs button div:first-child { font-weight: 500; margin-bottom: 2px; }
+  .rate-tabs button div:last-child { font-size: 11px; opacity: 0.85; }
+
+  .input-card {
+    background: #FFFFFF;
+    border: 0.5px solid rgba(0,0,0,0.12);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .input-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+  }
+  .input-header label { font-size: 14px; font-weight: 500; }
+  .input-header .hint { font-size: 11px; color: #999; }
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0 4px;
+  }
+  .slider-row input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: #E0E0E0;
+    outline: none;
+  }
+  .slider-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #185FA5;
+    cursor: pointer;
+    border: 2px solid #FFF;
+    box-shadow: 0 0 0 0.5px rgba(0,0,0,0.2);
+  }
+  .slider-row input[type=range]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #185FA5;
+    cursor: pointer;
+    border: 2px solid #FFF;
+  }
+  .slider-row .value {
+    font-size: 16px;
+    font-weight: 500;
+    min-width: 110px;
+    text-align: right;
+  }
+  .warn-text {
+    font-size: 12px;
+    color: #999;
+    margin-top: 4px;
+    min-height: 16px;
+  }
+  .warn-active { color: #BA7517 !important; }
+
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .metric {
+    background: #F1EFE8;
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .metric.highlight { background: #E6F1FB; }
+  .metric.highlight .label, .metric.highlight .value, .metric.highlight .unit { color: #0C447C; }
+  .metric.success { background: #EAF3DE; }
+  .metric.success .label, .metric.success .value, .metric.success .unit { color: #27500A; }
+  .metric.danger { background: #FCEBEB; }
+  .metric.danger .label, .metric.danger .value, .metric.danger .unit { color: #791F1F; }
+  .metric .label { font-size: 12px; color: #6B6B6B; margin-bottom: 6px; }
+  .metric .value { font-size: 20px; font-weight: 500; }
+  .metric .unit { font-size: 11px; color: #999; margin-top: 2px; }
+
+  .chart-wrap {
+    background: #FFFFFF;
+    border: 0.5px solid rgba(0,0,0,0.12);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 16px;
+  }
+  .chart-wrap p { font-size: 13px; color: #6B6B6B; margin-bottom: 12px; }
+  .chart-canvas-wrap { position: relative; width: 100%; height: 240px; }
+  .chart-canvas-wrap.tall { height: 300px; }
+
+  .penalty-row {
+    border-bottom: 0.5px solid rgba(0,0,0,0.1);
+    padding: 10px 0;
+  }
+  .penalty-row:last-child { border-bottom: none; }
+  .penalty-row .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .penalty-row .top span:first-child { font-size: 13px; }
+  .penalty-row .amount { font-size: 17px; font-weight: 500; }
+  .amount-danger { color: #A32D2D; }
+  .amount-warning { color: #BA7517; }
+  .amount-success { color: #0F6E56; }
+  .amount-info { color: #185FA5; }
+  .penalty-row .sub { font-size: 11px; color: #999; margin-top: 2px; }
+
+  .net-result {
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+  }
+  .net-result.danger { background: #FCEBEB; }
+  .net-result.success { background: #EAF3DE; }
+  .net-result.info { background: #E6F1FB; }
+  .net-result .header {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .net-result.danger .header { color: #791F1F; }
+  .net-result.success .header { color: #27500A; }
+  .net-result.info .header { color: #0C447C; }
+  .net-result table { width: 100%; font-size: 13px; }
+  .net-result.danger table { color: #791F1F; }
+  .net-result.success table { color: #27500A; }
+  .net-result.info table { color: #0C447C; }
+  .net-result td { padding: 3px 0; }
+  .net-result tr.total td {
+    padding-top: 8px;
+    font-weight: 500;
+  }
+  .net-result.danger tr.total td { border-top: 0.5px solid rgba(165, 45, 45, 0.3); }
+  .net-result.success tr.total td { border-top: 0.5px solid rgba(59, 109, 17, 0.3); }
+  .net-result.info tr.total td { border-top: 0.5px solid rgba(24, 95, 165, 0.3); }
+  .net-result .comment {
+    font-size: 11px;
+    opacity: 0.85;
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+  .net-result.danger .comment { color: #791F1F; }
+  .net-result.success .comment { color: #27500A; }
+  .net-result.info .comment { color: #0C447C; }
+
+  .compare-table {
+    background: #FFFFFF;
+    border: 0.5px solid rgba(0,0,0,0.12);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .compare-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .compare-table th {
+    text-align: left;
+    padding: 12px 14px;
+    background: #F1EFE8;
+    font-weight: 500;
+    font-size: 12px;
+    color: #6B6B6B;
+  }
+  .compare-table th.col-bad { color: #A32D2D; }
+  .compare-table th.col-good { color: #27500A; }
+  .compare-table th.col-info { color: #0C447C; }
+  .compare-table td {
+    padding: 10px 14px;
+    border-top: 0.5px solid rgba(0,0,0,0.06);
+  }
+  .compare-table td.bad { color: #A32D2D; font-weight: 500; }
+  .compare-table td.good { color: #27500A; font-weight: 500; }
+  .compare-table td.info { color: #185FA5; font-weight: 500; }
+  .compare-table td.label { color: #6B6B6B; }
+  .compare-table tr.total-row { background: #FAEEDA; }
+  .compare-table tr.total-row td { font-weight: 500; }
+  .compare-table tr.diff-row td.label { color: #185FA5; }
+
+  .info-box {
+    background: #F1EFE8;
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+  }
+  .info-box p {
+    font-size: 12px;
+    color: #6B6B6B;
+    line-height: 1.6;
+    margin-bottom: 4px;
+  }
+  .info-box p:last-child { margin-bottom: 0; }
+
+  .checklist {
+    background: #FFFFFF;
+    border: 0.5px solid rgba(0,0,0,0.12);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+  }
+  .checklist h3 {
+    font-size: 13px;
+    font-weight: 500;
+    color: #185FA5;
+    margin-bottom: 10px;
+  }
+  .checklist .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 6px 0;
+    font-size: 13px;
+  }
+  .check-mark {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    background: #EAF3DE;
+    color: #27500A;
+    text-align: center;
+    line-height: 18px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  footer {
+    text-align: center;
+    font-size: 11px;
+    color: #999;
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 0.5px solid rgba(0,0,0,0.08);
+    line-height: 1.7;
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 16px 10px; }
+    section { padding: 16px 14px; }
+    .metric-grid { grid-template-columns: 1fr; }
+    .metric .value { font-size: 18px; }
+    header h1 { font-size: 18px; }
+    .rate-tabs.three { grid-template-columns: 1fr; }
+    .compare-table { font-size: 12px; }
+    .compare-table th, .compare-table td { padding: 8px 10px; }
+    .index-nav { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media print {
+    body { background: #FFF; padding: 0; }
+    section { display: block !important; break-inside: avoid; box-shadow: none; }
+    .index-nav { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+<h1>연금세액공제 시뮬레이터</h1>
+<p>소득세법 §59의3 / §21①21호 / §129 / §16①9호 / 시행령 §25, §40의2 기준</p>
+</header>
+
+<nav class="index-nav" id="index-nav">
+<button data-target="sec1" class="active"><span class="icon-num">①</span>절세 시뮬</button>
+<button data-target="sec2"><span class="icon-num">②</span>수령 요건</button>
+<button data-target="sec3"><span class="icon-num">③</span>해지 vs 만기</button>
+<button data-target="sec4"><span class="icon-num">④</span>연금보험 비교</button>
+</nav>
+
+<section id="sec1" class="active">
+<h2>① 납입액별 절세 시뮬레이터</h2>
+
+<div class="badge-info">
+<div class="title">세액공제율 선택 (소득세법 §59의3)</div>
+<div class="rate-tabs" id="rate-tabs1">
+<button data-rate="16.5" class="active" id="rate-low">
+<div>16.5%</div>
+<div>종합소득금액 4,500만원 이하</div>
+</button>
+<button data-rate="13.2" id="rate-high">
+<div>13.2%</div>
+<div>4,500만원 초과</div>
+</button>
+</div>
+</div>
+
+<div class="input-card">
+<div class="input-header">
+<label>연금저축 납입액</label>
+<span class="hint">한도 600만원</span>
+</div>
+<div class="slider-row">
+<input type="range" min="0" max="6000000" step="100000" value="6000000" id="pension-input">
+<span class="value" id="pension-out">6,000,000원</span>
+</div>
+<div class="warn-text" id="pension-warn"></div>
+</div>
+
+<div class="input-card">
+<div class="input-header">
+<label>IRP 납입액</label>
+<span class="hint">합산 900만원 한도</span>
+</div>
+<div class="slider-row">
+<input type="range" min="0" max="9000000" step="100000" value="3000000" id="irp-input">
+<span class="value" id="irp-out">3,000,000원</span>
+</div>
+<div class="warn-text" id="irp-warn"></div>
+</div>
+
+<div class="metric-grid">
+<div class="metric">
+<div class="label">총 납입액</div>
+<div class="value" id="total-paid">9,000,000</div>
+<div class="unit">원</div>
+</div>
+<div class="metric">
+<div class="label">공제 대상</div>
+<div class="value" id="eligible">9,000,000</div>
+<div class="unit">원</div>
+</div>
+<div class="metric highlight">
+<div class="label">절세 예상액</div>
+<div class="value" id="refund">1,485,000</div>
+<div class="unit">원 (지방세 포함)</div>
+</div>
+</div>
+
+<div class="chart-wrap">
+<p>납입액별 절세 곡선</p>
+<div class="chart-canvas-wrap">
+<canvas id="refund-chart" role="img" aria-label="총 납입액에 따른 절세예상액 곡선">납입액 0~900만원 구간 절세액 곡선.</canvas>
+</div>
+</div>
+
+<div class="info-box">
+<p>· 한도 초과분은 세액공제는 안 되지만 과세이연 + 추후 인출 가능 (연금저축 1,800만원/年 한도 내).</p>
+<p>· 중도해지 시 세액공제 받은 원금 + 운용수익에 기타소득세 16.5% 부과 (소득세법 §21①21호).</p>
+</div>
+</section>
+
+<section id="sec2">
+<h2>② 연금수령 요건</h2>
+
+<div class="badge-info">
+<div class="title">연금수령 3가지 요건 (소득세법 시행령 §40의2)</div>
+<table>
+<tr><td>연령</td><td>만 55세 이후 연금수령 개시 신청</td></tr>
+<tr><td>기간</td><td>가입일부터 5년 경과 (이연퇴직소득 있으면 면제)</td></tr>
+<tr><td>한도</td><td>(평가액 ÷ (11 − 연차)) × 120%</td></tr>
+</table>
+</div>
+
+<div class="info-box">
+<p>· 53세 가입 → 58세부터 연금수령 가능 (5년 요건). 늦게 시작할수록 가입시기 체크 필수.</p>
+<p>· 11년차부터 연금수령한도 적용 안 됨 (전액 연금수령으로 인정).</p>
+<p>· 부득이한 사유 인출 (소득령 §20의2): 천재지변 / 사망 / 해외이주 / 3개월 이상 요양 / 파산·개인회생 / 금융기관 영업정지 → 5.5% 저율과세. 사유 확인일로부터 6개월 이내 증빙 제출.</p>
+</div>
+</section>
+
+<section id="sec3">
+<h2>③ 중도해지 vs 만기 연금수령</h2>
+
+<div class="input-card">
+<div class="input-header">
+<label>세액공제 받은 원금</label>
+<span class="hint">납입원금 중 공제 적용분</span>
+</div>
+<div class="slider-row">
+<input type="range" min="0" max="50000000" step="500000" value="20000000" id="principal">
+<span class="value" id="principal-out">20,000,000원</span>
+</div>
+</div>
+
+<div class="input-card">
+<div class="input-header">
+<label>운용수익</label>
+<span class="hint">계좌평가액 − 원금</span>
+</div>
+<div class="slider-row">
+<input type="range" min="0" max="20000000" step="100000" value="3000000" id="profit">
+<span class="value" id="profit-out">3,000,000원</span>
+</div>
+</div>
+
+<div class="input-card">
+<div class="input-header">
+<label>받았던 세액공제율</label>
+</div>
+<div class="rate-tabs" id="rate-tabs2">
+<button data-rate="16.5" class="active" id="r2-low">
+<div>16.5%</div>
+<div>소득 4,500만원 이하 시</div>
+</button>
+<button data-rate="13.2" id="r2-high">
+<div>13.2%</div>
+<div>소득 4,500만원 초과 시</div>
+</button>
+</div>
+</div>
+
+<div class="input-card">
+<div class="input-header">
+<label>연금 수령 개시 연령</label>
+<span class="hint">소득세법 §129①5의2</span>
+</div>
+<div class="rate-tabs three" id="age-tabs">
+<button data-age="55" class="active" id="age-55">
+<div>55~69세</div>
+<div>5.5%</div>
+</button>
+<button data-age="70" id="age-70">
+<div>70~79세</div>
+<div>4.4%</div>
+</button>
+<button data-age="80" id="age-80">
+<div>80세 이상</div>
+<div>3.3%</div>
+</button>
+</div>
+</div>
+
+<div class="input-card">
+<div class="input-header">
+<label>연금 수령 형태</label>
+<span class="hint">종신형 선택 시 55~69세도 4.4%</span>
+</div>
+<div class="rate-tabs" id="form-tabs">
+<button data-form="period" class="active" id="form-period">
+<div>확정기간형</div>
+<div>나이별 세율</div>
+</button>
+<button data-form="life" id="form-life">
+<div>종신형</div>
+<div>55~79세 4.4%</div>
+</button>
+</div>
+</div>
+
+<div class="input-card">
+<div class="input-header">
+<label>연 수령액</label>
+<span class="hint">1,500만원 이하 분리과세 / 초과 시 종합 또는 16.5% 분리과세 선택</span>
+</div>
+<div class="slider-row">
+<input type="range" min="1000000" max="5000000" step="100000" value="1500000" id="annual-amount">
+<span class="value" id="annual-out">1,500,000원</span>
+</div>
+<div class="warn-text" id="annual-warn"></div>
+</div>
+
+<div class="metric-grid" style="grid-template-columns: 1fr 1fr;">
+<div class="metric">
+<div class="label">그동안 받았던 세액공제 합계</div>
+<div class="value" id="received">3,300,000</div>
+<div class="unit">원 (이미 환급받은 돈)</div>
+</div>
+<div class="metric">
+<div class="label">계좌평가액 (현재 잔고)</div>
+<div class="value" id="balance">23,000,000</div>
+<div class="unit">원 (원금 + 수익)</div>
+</div>
+</div>
+
+<div class="compare-table">
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th class="col-bad">중도해지 (일시금)</th>
+<th class="col-good">만기 연금수령</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="label">과세 방식</td><td>기타소득세 분리과세</td><td>연금소득세 원천징수</td></tr>
+<tr><td class="label">적용 세율</td><td class="bad">16.5%</td><td class="good" id="cmp-rate">5.5%</td></tr>
+<tr><td class="label">법령 근거</td><td>§21①21호</td><td>§129①5의2</td></tr>
+<tr><td class="label">과세 대상</td><td>잔고 전체</td><td>매년 수령액</td></tr>
+<tr><td class="label">수령 방식</td><td>일시금 1회</td><td id="cmp-period">매년 분할</td></tr>
+<tr class="total-row">
+<td class="label">총 부담세액</td>
+<td class="bad" id="cmp-tax-now">−3,795,000원</td>
+<td class="good" id="cmp-tax-pension">−1,265,000원</td>
+</tr>
+<tr class="diff-row">
+<td class="label">절세 효과</td>
+<td colspan="2" style="text-align: center;" id="cmp-diff">+2,530,000원 (만기 수령 시 추가 절세)</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<div class="net-result success">
+<div class="header">✓ 만기 연금수령 시 실질 손익</div>
+<table>
+<tr><td>+ 그동안 받은 세액공제 (그대로 보유)</td><td style="text-align: right;" id="pension-received">+3,300,000원</td></tr>
+<tr><td>+ 운용수익</td><td style="text-align: right;" id="pension-profit">+3,000,000원</td></tr>
+<tr><td>− 연금소득세 (총 누적)</td><td style="text-align: right;" id="pension-tax">−1,265,000원</td></tr>
+<tr class="total"><td>실질 손익</td><td style="text-align: right;" id="pension-net">+5,035,000원</td></tr>
+</table>
+<div class="comment" id="pension-comment">정상 연금수령 시 절감 세금 + 과세이연 효과 누적 + 노후자금 보전. 가장 유리.</div>
+</div>
+
+<div class="net-result danger">
+<div class="header">⚠ 일반 중도해지 시 실질 손익</div>
+<table>
+<tr><td>+ 그동안 받은 세액공제</td><td style="text-align: right;" id="net-plus">+3,300,000원</td></tr>
+<tr><td>+ 운용수익</td><td style="text-align: right;" id="net-profit">+3,000,000원</td></tr>
+<tr><td>− 기타소득세 (16.5%)</td><td style="text-align: right;" id="net-minus">−3,795,000원</td></tr>
+<tr class="total"><td>실질 손익</td><td style="text-align: right;" id="net-total">+2,505,000원</td></tr>
+</table>
+<div class="comment" id="net-comment">세액공제 16.5% 받았어도 운용수익까지 16.5% 과세로 실질이익 적음.</div>
+</div>
+</section>
+
+<section id="sec4">
+<h2>④ 연금보험 비교</h2>
+
+<div class="badge-info">
+<div class="title">세제적격 vs 세제비적격 — 핵심 차이</div>
+<table>
+<tr><td>세제적격</td><td>연금저축·IRP / 납입 시 세액공제 / 수령 시 연금소득세</td></tr>
+<tr><td>세제비적격</td><td>연금보험 / 납입 시 혜택 없음 / 수령 시 비과세 (요건 충족)</td></tr>
+</table>
+</div>
+
+<div class="checklist">
+<h3>연금보험 비과세 요건 (소득세법 시행령 §25)</h3>
+<div class="check-item"><span class="check-mark">①</span><span>월적립식: <strong>월 보험료 150만원 이하</strong> + 5년 이상 납입 + 10년 이상 유지</span></div>
+<div class="check-item"><span class="check-mark">②</span><span>일시납: 1억원 이하 + 10년 이상 유지 (2017.4.1. 이후 계약)</span></div>
+<div class="check-item"><span class="check-mark">③</span><span>종신형: 55세 이후~사망까지 수령 + 계약자=피보험자=수익자 일치 (한도 없음)</span></div>
+<div class="check-item"><span class="check-mark">!</span><span style="color: #BA7517;">요건 미충족 시 보험차익 전체에 이자소득세 15.4% 부과</span></div>
+</div>
+
+<div class="input-card">
+<div class="input-header">
+<label>연 납입액</label>
+<span class="hint">3개 상품에 동일 금액 납입 가정</span>
+</div>
+<div class="slider-row">
+<input type="range" min="1200000" max="18000000" step="100000" value="6000000" id="annual-pay">
+<span class="value" id="annual-pay-out">6,000,000원</span>
+</div>
+<div class="warn-text" id="annual-pay-warn"></div>
+</div>
+
+<div class="input-card">
+<div class="input-header">
+<label>납입 기간</label>
+<span class="hint">총 납입 연수</span>
+</div>
+<div class="slider-row">
+<input type="range" min="5" max="30" step="1" value="20" id="pay-years">
+<span class="value" id="pay-years-out">20년</span>
+</div>
+</div>
+
+<div class="input-card">
+<div class="input-header">
+<label>예상 연 수익률</label>
+<span class="hint">연금저축 ETF 운용 vs 연금보험 공시이율</span>
+</div>
+<div class="slider-row">
+<input type="range" min="2" max="8" step="0.5" value="5" id="return-rate">
+<span class="value" id="return-rate-out">5.0%</span>
+</div>
+</div>
+
+<div class="input-card">
+<div class="input-header">
+<label>적용 세액공제율 (납입 당시)</label>
+</div>
+<div class="rate-tabs" id="rate-tabs4">
+<button data-rate="16.5" class="active" id="r4-low">
+<div>16.5%</div>
+<div>소득 4,500만원 이하</div>
+</button>
+<button data-rate="13.2" id="r4-high">
+<div>13.2%</div>
+<div>소득 4,500만원 초과</div>
+</button>
+</div>
+</div>
+
+<div class="input-card">
+<div class="input-header">
+<label>수령 개시 연령</label>
+</div>
+<div class="rate-tabs three" id="age-tabs4">
+<button data-age="55" class="active" id="age4-55">
+<div>55~69세</div>
+<div>5.5%</div>
+</button>
+<button data-age="70" id="age4-70">
+<div>70~79세</div>
+<div>4.4%</div>
+</button>
+<button data-age="80" id="age4-80">
+<div>80세 이상</div>
+<div>3.3%</div>
+</button>
+</div>
+</div>
+
+<div class="metric-grid">
+<div class="metric">
+<div class="label">총 납입원금</div>
+<div class="value" id="total-principal">120,000,000</div>
+<div class="unit">원</div>
+</div>
+<div class="metric">
+<div class="label">예상 만기 평가액</div>
+<div class="value" id="maturity-value">198,000,000</div>
+<div class="unit">원 (원금 + 수익)</div>
+</div>
+<div class="metric highlight">
+<div class="label">예상 운용수익</div>
+<div class="value" id="expected-profit">78,000,000</div>
+<div class="unit">원</div>
+</div>
+</div>
+
+<div class="compare-table">
+<table>
+<thead>
+<tr>
+<th>비교 항목</th>
+<th class="col-info">연금저축·IRP</th>
+<th class="col-info">연금보험 (요건○)</th>
+<th class="col-bad">연금보험 (요건✗)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="label">납입 시 절세<br><span style="font-size:11px;color:#999;">(누적)</span></td>
+<td class="info" id="prod1-saving">+19,800,000</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td class="label">수령 시 세금<br><span style="font-size:11px;color:#999;">(전체 평가액 기준)</span></td>
+<td id="prod1-tax">−10,890,000</td>
+<td class="good">0 (비과세)</td>
+<td class="bad" id="prod3-tax">−12,012,000</td>
+</tr>
+<tr class="total-row">
+<td class="label">총 절세효과<br><span style="font-size:11px;color:#999;">(절세 − 세금)</span></td>
+<td class="info" id="prod1-net">+8,910,000</td>
+<td class="good">0</td>
+<td class="bad" id="prod3-net">−12,012,000</td>
+</tr>
+<tr>
+<td class="label">실질 수령액<br><span style="font-size:11px;color:#999;">(평가액 + 절세 − 세금)</span></td>
+<td class="info" id="prod1-final">206,910,000</td>
+<td class="good" id="prod2-final">198,000,000</td>
+<td class="bad" id="prod3-final">185,988,000</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<div class="chart-wrap">
+<p>3개 상품 실질 수령액 비교</p>
+<div class="chart-canvas-wrap">
+<canvas id="compare-chart" role="img" aria-label="3개 상품 실질 수령액 비교 막대 차트">연금저축, 연금보험(요건충족), 연금보험(요건미충족) 비교.</canvas>
+</div>
+</div>
+
+<div class="net-result info">
+<div class="header">💡 결론 및 추천</div>
+<div id="recommendation" style="font-size: 13px; line-height: 1.7;">
+계산 중...
+</div>
+</div>
+
+<div class="info-box">
+<p>· <strong>연금저축</strong>: 납입 시 절세 즉시 환급 + 수령 시 저율과세. 노후 + 단기 절세 모두 노릴 때.</p>
+<p>· <strong>연금보험 (요건충족)</strong>: 납입 시 절세 없음. 수령 시 100% 비과세. 고소득자·고액자산가가 한도 초과분 노후 준비할 때.</p>
+<p>· <strong>연금보험 (요건미충족)</strong>: 보험차익에 이자소득세 15.4% → 일반 예금과 다를 바 없음. 가입 의미 없음.</p>
+<p>· 상기 시뮬레이션은 평가액 전체를 한 해 일시 수령하는 기준 (최악 시나리오). 실제 매년 분할 수령 시 1,500만원 이하면 연금저축이 더 유리.</p>
+<p>· 수익률은 시장 상황과 상품 종류에 따라 다름. 변액연금보험은 손실 가능성 있음.</p>
+</div>
+</section>
+
+<footer>
+<div>본 시뮬레이터는 의뢰인 상담용 참고자료입니다.</div>
+<div>법령 기준일: 2026.05 / 근거: 소득세법 §16, §59의3, §64의4, §129, §143의2 / 시행령 §25, §40의2, §40의3</div>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  var navButtons = document.querySelectorAll('.index-nav button');
+  var sections = document.querySelectorAll('section');
+  navButtons.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var target = btn.getAttribute('data-target');
+      navButtons.forEach(function(b){ b.classList.remove('active'); });
+      sections.forEach(function(s){ s.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById(target).classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+})();
+
+(function(){
+  var rate1 = 16.5;
+  var pensionInput = document.getElementById('pension-input');
+  var irpInput = document.getElementById('irp-input');
+  var pensionOut = document.getElementById('pension-out');
+  var irpOut = document.getElementById('irp-out');
+  var pensionWarn = document.getElementById('pension-warn');
+  var irpWarn = document.getElementById('irp-warn');
+  var totalPaid = document.getElementById('total-paid');
+  var eligible = document.getElementById('eligible');
+  var refund = document.getElementById('refund');
+  var rateLow = document.getElementById('rate-low');
+  var rateHigh = document.getElementById('rate-high');
+
+  var fmt = function(n){ return Math.round(n).toLocaleString('ko-KR'); };
+
+  function calcEligible(p, i){
+    var pCap = Math.min(p, 6000000);
+    var combined = pCap + i;
+    if (combined > 9000000) combined = 9000000;
+    return combined;
+  }
+
+  var chart;
+  function initChart(){
+    var ctx = document.getElementById('refund-chart').getContext('2d');
+    var labels = [];
+    var data = [];
+    for (var k = 0; k <= 18; k++){
+      var v = k * 500000;
+      labels.push(v);
+      data.push(Math.min(v, 9000000) * rate1 / 100);
+    }
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: '절세액', data: data, borderColor: '#185FA5', backgroundColor: 'rgba(53, 138, 221, 0.12)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2 },
+          { label: '현재 위치', data: [], borderColor: '#D85A30', backgroundColor: '#D85A30', pointRadius: 7, pointHoverRadius: 9, showLine: false }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { title: function(items){ return '납입 ' + fmt(items[0].parsed.x) + '원'; }, label: function(ctx){ return '절세 ' + fmt(ctx.parsed.y) + '원'; } } }
+        },
+        scales: {
+          x: { type: 'linear', min: 0, max: 9000000, ticks: { callback: function(v){ return (v/10000) + '만'; }, color: '#888780', font: { size: 11 } }, grid: { color: 'rgba(136,135,128,0.15)' } },
+          y: { min: 0, ticks: { callback: function(v){ return (v/10000) + '만'; }, color: '#888780', font: { size: 11 } }, grid: { color: 'rgba(136,135,128,0.15)' } }
+        }
+      }
+    });
+  }
+
+  function updateChart(elig, ref){
+    if (!chart) return;
+    var dataLine = [];
+    for (var k = 0; k <= 18; k++){
+      var v = k * 500000;
+      dataLine.push(Math.min(v, 9000000) * rate1 / 100);
+    }
+    chart.data.datasets[0].data = dataLine;
+    chart.data.datasets[1].data = [{x: elig, y: ref}];
+    chart.update('none');
+  }
+
+  function update1(){
+    var p = parseInt(pensionInput.value, 10);
+    var i = parseInt(irpInput.value, 10);
+    pensionOut.textContent = fmt(p) + '원';
+    irpOut.textContent = fmt(i) + '원';
+
+    pensionWarn.textContent = '';
+    pensionWarn.classList.remove('warn-active');
+    irpWarn.textContent = '';
+    irpWarn.classList.remove('warn-active');
+
+    if (p > 6000000){
+      pensionWarn.textContent = '⚠ 600만원 초과분은 공제 제외';
+      pensionWarn.classList.add('warn-active');
+    }
+    var pCap = Math.min(p, 6000000);
+    if (pCap + i > 9000000){
+      var over = (pCap + i) - 9000000;
+      irpWarn.textContent = '⚠ 합산 900만원 초과 ' + fmt(over) + '원 공제 제외';
+      irpWarn.classList.add('warn-active');
+    }
+
+    var elig = calcEligible(p, i);
+    var ref = elig * rate1 / 100;
+
+    totalPaid.textContent = fmt(p + i);
+    eligible.textContent = fmt(elig);
+    refund.textContent = fmt(ref);
+
+    updateChart(elig, ref);
+  }
+
+  function setRate1(newRate, btnOn, btnOff){
+    rate1 = newRate;
+    btnOn.classList.add('active');
+    btnOff.classList.remove('active');
+    update1();
+  }
+
+  rateLow.addEventListener('click', function(){ setRate1(16.5, rateLow, rateHigh); });
+  rateHigh.addEventListener('click', function(){ setRate1(13.2, rateHigh, rateLow); });
+  pensionInput.addEventListener('input', update1);
+  irpInput.addEventListener('input', update1);
+
+  if (typeof Chart !== 'undefined') {
+    initChart();
+  } else {
+    window.addEventListener('load', function(){ if (typeof Chart !== 'undefined') initChart(); });
+  }
+  update1();
+})();
+
+(function(){
+  var rate2 = 16.5;
+  var ageGroup = 55;
+  var formType = 'period';
+  var p2 = document.getElementById('principal');
+  var pf = document.getElementById('profit');
+  var pOut = document.getElementById('principal-out');
+  var pfOut = document.getElementById('profit-out');
+  var rLow = document.getElementById('r2-low');
+  var rHigh = document.getElementById('r2-high');
+  var age55 = document.getElementById('age-55');
+  var age70 = document.getElementById('age-70');
+  var age80 = document.getElementById('age-80');
+  var formPeriod = document.getElementById('form-period');
+  var formLife = document.getElementById('form-life');
+  var annualInput = document.getElementById('annual-amount');
+  var annualOut = document.getElementById('annual-out');
+  var annualWarn = document.getElementById('annual-warn');
+
+  var fmt = function(n){ return Math.round(n).toLocaleString('ko-KR'); };
+
+  function getPensionRate(){
+    if (ageGroup === 80) return 3.3;
+    if (ageGroup === 70) return 4.4;
+    if (formType === 'life') return 4.4;
+    return 5.5;
+  }
+
+  function setRate2(newRate, on, off){
+    rate2 = newRate;
+    on.classList.add('active');
+    off.classList.remove('active');
+    update2();
+  }
+
+  function setAge(age, btn){
+    ageGroup = age;
+    [age55, age70, age80].forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    update2();
+  }
+
+  function setForm(form, btn){
+    formType = form;
+    [formPeriod, formLife].forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    update2();
+  }
+
+  function update2(){
+    var principal = parseInt(p2.value, 10);
+    var profit = parseInt(pf.value, 10);
+    var balance = principal + profit;
+    var annual = parseInt(annualInput.value, 10);
+
+    pOut.textContent = fmt(principal) + '원';
+    pfOut.textContent = fmt(profit) + '원';
+    annualOut.textContent = fmt(annual) + '원';
+
+    annualWarn.textContent = '';
+    annualWarn.classList.remove('warn-active');
+    if (annual > 1500000){
+      annualWarn.textContent = '⚠ 연 1,500만원 초과 → 종합과세 또는 16.5% 분리과세 선택 (§64의4)';
+      annualWarn.classList.add('warn-active');
+    }
+
+    var received = principal * rate2 / 100;
+    document.getElementById('received').textContent = fmt(received);
+    document.getElementById('balance').textContent = fmt(balance);
+
+    var pensionRate = getPensionRate();
+    var penaltyNormal = balance * 0.165;
+
+    var years = annual > 0 ? Math.ceil(balance / annual) : 1;
+    var lastAnnual = balance - annual * (years - 1);
+
+    var pensionTaxTotal;
+    if (annual <= 1500000){
+      pensionTaxTotal = balance * pensionRate / 100;
+    } else {
+      var lowRateTax = annual * pensionRate / 100;
+      var excessTax = (annual - 1500000) * 0.165;
+      var perYearTax = lowRateTax + excessTax;
+      var fullYearsTax = perYearTax * (years - 1);
+      var lastYearTax;
+      if (lastAnnual <= 1500000){
+        lastYearTax = lastAnnual * pensionRate / 100;
+      } else {
+        lastYearTax = 1500000 * pensionRate / 100 + (lastAnnual - 1500000) * 0.165;
+      }
+      pensionTaxTotal = fullYearsTax + lastYearTax;
+    }
+
+    document.getElementById('cmp-rate').textContent = pensionRate + '% (실효)';
+    document.getElementById('cmp-period').textContent = years + '년간 분할';
+    document.getElementById('cmp-tax-now').textContent = '−' + fmt(penaltyNormal) + '원';
+    document.getElementById('cmp-tax-pension').textContent = '−' + fmt(pensionTaxTotal) + '원';
+    var diff = penaltyNormal - pensionTaxTotal;
+    document.getElementById('cmp-diff').textContent = '+' + fmt(diff) + '원 (만기 수령 시 추가 절세)';
+
+    document.getElementById('pension-received').textContent = '+' + fmt(received) + '원';
+    document.getElementById('pension-profit').textContent = '+' + fmt(profit) + '원';
+    document.getElementById('pension-tax').textContent = '−' + fmt(pensionTaxTotal) + '원';
+    var pensionNet = received + profit - pensionTaxTotal;
+    var ps = pensionNet >= 0 ? '+' : '−';
+    document.getElementById('pension-net').textContent = ps + fmt(Math.abs(pensionNet)) + '원';
+
+    var pCommentEl = document.getElementById('pension-comment');
+    if (annual <= 1500000){
+      pCommentEl.textContent = '연 1,500만원 이하 → ' + pensionRate + '% 저율 분리과세 종결. ' + years + '년간 나눠 받으면 노후자금 보전 + 세부담 최소화.';
+    } else {
+      pCommentEl.textContent = '연 1,500만원 초과 → 종합과세 vs 16.5% 분리과세 선택 가능. 다른 소득 적으면 종합과세가 유리할 수 있음.';
+    }
+
+    var net = received + profit - penaltyNormal;
+    document.getElementById('net-plus').textContent = '+' + fmt(received) + '원';
+    document.getElementById('net-profit').textContent = '+' + fmt(profit) + '원';
+    document.getElementById('net-minus').textContent = '−' + fmt(penaltyNormal) + '원';
+    var sign = net >= 0 ? '+' : '−';
+    document.getElementById('net-total').textContent = sign + fmt(Math.abs(net)) + '원';
+
+    var comment = document.getElementById('net-comment');
+    if (rate2 === 16.5){
+      if (net >= 0){
+        comment.textContent = '세액공제 16.5% 받았어도 운용수익까지 16.5% 과세로 실질이익 적음. 노후자금 손실 + 과세이연 혜택 소멸.';
+      } else {
+        comment.textContent = '세액공제 받은 금액보다 더 많은 세금을 내는 상황. 절대 해지 금지.';
+      }
+    } else {
+      comment.textContent = '13.2% 공제 받았는데 16.5%로 과세 → 무조건 손해. 운용수익에도 16.5% 부과되어 손실 확대.';
+    }
+  }
+
+  rLow.addEventListener('click', function(){ setRate2(16.5, rLow, rHigh); });
+  rHigh.addEventListener('click', function(){ setRate2(13.2, rHigh, rLow); });
+  age55.addEventListener('click', function(){ setAge(55, age55); });
+  age70.addEventListener('click', function(){ setAge(70, age70); });
+  age80.addEventListener('click', function(){ setAge(80, age80); });
+  formPeriod.addEventListener('click', function(){ setForm('period', formPeriod); });
+  formLife.addEventListener('click', function(){ setForm('life', formLife); });
+  p2.addEventListener('input', update2);
+  pf.addEventListener('input', update2);
+  annualInput.addEventListener('input', update2);
+
+  update2();
+})();
+
+(function(){
+  var rate4 = 16.5;
+  var ageGroup4 = 55;
+  var annualPay = document.getElementById('annual-pay');
+  var annualPayOut = document.getElementById('annual-pay-out');
+  var annualPayWarn = document.getElementById('annual-pay-warn');
+  var payYears = document.getElementById('pay-years');
+  var payYearsOut = document.getElementById('pay-years-out');
+  var returnRate = document.getElementById('return-rate');
+  var returnRateOut = document.getElementById('return-rate-out');
+  var r4Low = document.getElementById('r4-low');
+  var r4High = document.getElementById('r4-high');
+  var age4_55 = document.getElementById('age4-55');
+  var age4_70 = document.getElementById('age4-70');
+  var age4_80 = document.getElementById('age4-80');
+
+  var fmt = function(n){ return Math.round(n).toLocaleString('ko-KR'); };
+
+  function getPensionRate4(){
+    if (ageGroup4 === 80) return 3.3;
+    if (ageGroup4 === 70) return 4.4;
+    return 5.5;
+  }
+
+  var compareChart;
+  function initCompareChart(){
+    var ctx = document.getElementById('compare-chart').getContext('2d');
+    compareChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['연금저축·IRP', '연금보험\n(요건충족)', '연금보험\n(요건미충족)'],
+        datasets: [{
+          label: '실질 수령액',
+          data: [206910000, 198000000, 185988000],
+          backgroundColor: ['#185FA5', '#3B6D11', '#A32D2D'],
+          borderRadius: 6,
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function(ctx){ return fmt(ctx.parsed.x) + '원'; } } }
+        },
+        scales: {
+          x: { ticks: { callback: function(v){ return (v/10000000) + '천만'; }, color: '#888780', font: { size: 11 } }, grid: { color: 'rgba(136,135,128,0.15)' } },
+          y: { ticks: { color: '#1A1A1A', font: { size: 12 } }, grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  function update4(){
+    var pay = parseInt(annualPay.value, 10);
+    var years = parseInt(payYears.value, 10);
+    var rtn = parseFloat(returnRate.value);
+
+    annualPayOut.textContent = fmt(pay) + '원';
+    payYearsOut.textContent = years + '년';
+    returnRateOut.textContent = rtn.toFixed(1) + '%';
+
+    annualPayWarn.textContent = '';
+    annualPayWarn.classList.remove('warn-active');
+    var monthly = pay / 12;
+    if (monthly > 1500000){
+      annualPayWarn.textContent = '⚠ 월 ' + fmt(monthly) + '원 → 연금보험 비과세 한도(월 150만원) 초과. 초과분은 비과세 ✗';
+      annualPayWarn.classList.add('warn-active');
+    }
+
+    var totalPrincipal = pay * years;
+    var r = rtn / 100;
+    var maturityValue;
+    if (r === 0){
+      maturityValue = totalPrincipal;
+    } else {
+      maturityValue = pay * ((Math.pow(1 + r, years) - 1) / r);
+    }
+    var totalProfit = maturityValue - totalPrincipal;
+
+    document.getElementById('total-principal').textContent = fmt(totalPrincipal);
+    document.getElementById('maturity-value').textContent = fmt(maturityValue);
+    document.getElementById('expected-profit').textContent = fmt(totalProfit);
+
+    var saving1 = 0;
+    for (var y = 0; y < years; y++){
+      var eligible = Math.min(pay, 9000000);
+      saving1 += eligible * rate4 / 100;
+    }
+
+    var pensionRate = getPensionRate4();
+    var tax1 = maturityValue * pensionRate / 100;
+    var net1 = saving1 - tax1;
+    var final1 = maturityValue + saving1 - tax1;
+
+    var tax2 = 0;
+    var net2 = 0;
+    var final2 = maturityValue;
+
+    var tax3 = totalProfit * 0.154;
+    var net3 = -tax3;
+    var final3 = maturityValue - tax3;
+
+    document.getElementById('prod1-saving').textContent = '+' + fmt(saving1);
+    document.getElementById('prod1-tax').textContent = '−' + fmt(tax1);
+    document.getElementById('prod1-net').textContent = (net1 >= 0 ? '+' : '−') + fmt(Math.abs(net1));
+    document.getElementById('prod1-final').textContent = fmt(final1);
+
+    document.getElementById('prod3-tax').textContent = '−' + fmt(tax3);
+    document.getElementById('prod3-net').textContent = '−' + fmt(Math.abs(net3));
+    document.getElementById('prod3-final').textContent = fmt(final3);
+
+    document.getElementById('prod2-final').textContent = fmt(final2);
+
+    if (compareChart){
+      compareChart.data.datasets[0].data = [final1, final2, final3];
+      compareChart.update('none');
+    }
+
+    var rec = document.getElementById('recommendation');
+    var html = '';
+    var winner = Math.max(final1, final2, final3);
+    if (winner === final1){
+      var diff12 = final1 - final2;
+      html = '<strong style="color:#185FA5;">→ 연금저축·IRP가 가장 유리</strong> (연금보험 대비 +' + fmt(diff12) + '원)<br>';
+      html += '· 납입 시 ' + fmt(saving1) + '원 즉시 절세 + 수령 시 저율과세 (' + pensionRate + '%) 효과.<br>';
+      if (monthly > 1500000){
+        html += '· 단, 월 150만원 초과로 연금보험 비과세 요건 충족 시 결과가 달라질 수 있음.';
+      }
+    } else if (winner === final2){
+      var diff21 = final2 - final1;
+      html = '<strong style="color:#27500A;">→ 연금보험(요건충족)이 가장 유리</strong> (연금저축 대비 +' + fmt(diff21) + '원)<br>';
+      html += '· 수령 시 비과세 효과가 납입 시 절세 효과를 초과.<br>';
+      html += '· 고소득자 또는 1,500만원 초과 종합과세 회피 목적에 적합.';
+    } else {
+      html = '<strong style="color:#A32D2D;">→ 연금보험(요건미충족)은 절대 비추천</strong><br>';
+      html += '· 보험차익에 15.4% 이자소득세 부과 → 일반 예금 수준.<br>';
+      html += '· 비과세 요건을 반드시 확인하고 가입.';
+    }
+    rec.innerHTML = html;
+  }
+
+  function setRate4(newRate, on, off){
+    rate4 = newRate;
+    on.classList.add('active');
+    off.classList.remove('active');
+    update4();
+  }
+
+  function setAge4(age, btn){
+    ageGroup4 = age;
+    [age4_55, age4_70, age4_80].forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    update4();
+  }
+
+  r4Low.addEventListener('click', function(){ setRate4(16.5, r4Low, r4High); });
+  r4High.addEventListener('click', function(){ setRate4(13.2, r4High, r4Low); });
+  age4_55.addEventListener('click', function(){ setAge4(55, age4_55); });
+  age4_70.addEventListener('click', function(){ setAge4(70, age4_70); });
+  age4_80.addEventListener('click', function(){ setAge4(80, age4_80); });
+  annualPay.addEventListener('input', update4);
+  payYears.addEventListener('input', update4);
+  returnRate.addEventListener('input', update4);
+
+  if (typeof Chart !== 'undefined') {
+    initCompareChart();
+  } else {
+    window.addEventListener('load', function(){ if (typeof Chart !== 'undefined') initCompareChart(); });
+  }
+  update4();
+})();
+</script>
+</body>
+</html>
